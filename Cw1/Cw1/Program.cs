@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -9,29 +10,43 @@ namespace Cw1
     {
         static async Task Main(string[] args)
         {
-            String url = "https://www.pja.edu.pl/";
+            if (args.Length == 0)
+            {
+                throw new ArgumentNullException("Missing url argument");
+            }
 
-            if (args.Length > 0 && args[0] != null)
+            Regex urlRegex = new Regex(@"^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$");
+            
+            if (urlRegex.Matches(args[0]).Count != 1)
             {
-                url = args[0];
-                Console.WriteLine("Url passed. Using: " + url);
-            } else
-            {
-                Console.WriteLine("Url not passed. Using default: " + url);
+                throw new ArgumentException("Argument is not correct url");
             }
 
             HttpClient httpClient = new HttpClient();
-            String response = await httpClient.GetStringAsync(url);
 
-            Regex emailRegex = new Regex(@"\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*", RegexOptions.IgnoreCase);
-            MatchCollection emailMatches = emailRegex.Matches(response);
-
-
-            Console.WriteLine();
-            Console.WriteLine("Found emails: ");
-            foreach (Match emailMatch in emailMatches)
+            try
             {
-                Console.WriteLine(emailMatch.Value);
+                String response = await httpClient.GetStringAsync(args[0]);
+
+                Regex emailRegex = new Regex(@"\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*", RegexOptions.IgnoreCase);
+                MatchCollection emailMatches = emailRegex.Matches(response);
+
+                if (emailMatches.Count == 0)
+                {
+                    Console.WriteLine("Ńie znaleziono adresów email");
+                    return;
+                }
+
+                foreach (String email in emailMatches.Select(m => m.Value).Distinct())
+                {
+                    Console.WriteLine(email);
+                }
+            } catch (Exception e)
+            {
+                Console.WriteLine("Błąd w czasie pobierania strony");
+            } finally
+            {
+                httpClient.Dispose();
             }
         }
     }
